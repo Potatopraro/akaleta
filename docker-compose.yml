@@ -1,0 +1,111 @@
+version: '3.8'
+
+services:
+  # ── MongoDB ─────────────────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7.0
+    container_name: akaleta_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: akaleta_admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-akaleta_secure_pass_2024}
+      MONGO_INITDB_DATABASE: akaleta
+    volumes:
+      - mongodb_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - akaleta_network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── DeepStack (Nigerian Sign Language YOLO Model) ────────────────────────────
+  deepstack:
+    image: deepquestai/deepstack:latest
+    container_name: akaleta_deepstack
+    restart: unless-stopped
+    environment:
+      - VISION-CUSTOM=True
+      - MODE=Medium
+      - THREADCOUNT=4
+    volumes:
+      - ./ml_engine/deepstack_models:/modelstore
+    ports:
+      - "88:5000"
+    networks:
+      - akaleta_network
+    healthcheck:
+      test: curl -f http://localhost:5000/ || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── AKALETA Backend API ──────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: akaleta_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://akaleta_admin:${MONGO_PASSWORD:-akaleta_secure_pass_2024}@mongodb:27017/akaleta?authSource=admin
+      JWT_SECRET: ${JWT_SECRET:-change_this_in_production_min_32_chars}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change_this_refresh_secret_too}
+      DEEPSTACK_URL: http://deepstack:5000
+      DEEPSTACK_MODEL_NAME: best
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@akaleta.ng}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@akaleta.ng}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/ml_engine:/app/ml_engine
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      deepstack:
+        condition: service_started
+    networks:
+      - akaleta_network
+    healthcheck:
+      test: curl -f http://localhost:5000/health || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── AKALETA Frontend (Production Build) ─────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:5000/api}
+    container_name: akaleta_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - akaleta_network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  akaleta_network:
+    driver: bridge
