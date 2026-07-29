@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 
 const AuthContext = createContext(null);
@@ -8,7 +7,12 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('akaleta_token'));
-  const navigate = useNavigate();
+
+  const redirectTo = useCallback((path) => {
+    if (typeof window !== 'undefined') {
+      window.location.assign(path);
+    }
+  }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem('akaleta_token');
@@ -16,8 +20,8 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     api.post('/auth/logout').catch(() => {});
-    navigate('/login');
-  }, [navigate]);
+    redirectTo('/login');
+  }, [redirectTo]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -48,7 +52,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       
       // ✅ FIX: Force redirect to dashboard after login
-      navigate('/app/dashboard');
+      redirectTo('/app/dashboard');
       
       return userData;
     } catch (error) {
@@ -68,7 +72,7 @@ export const AuthProvider = ({ children }) => {
       setUser(userData);
       
       // ✅ FIX: Force redirect to dashboard after registration
-      navigate('/app/dashboard');
+      redirectTo('/app/dashboard');
       
       return userData;
     } catch (error) {
