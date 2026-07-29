@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import toast from 'react-hot-toast';
@@ -9,7 +9,6 @@ export default function AuthPage({ mode }) {
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const { login, register } = useAuth();
-  const navigate = useNavigate();
   const { token } = useParams();
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -21,13 +20,13 @@ export default function AuthPage({ mode }) {
       if (mode === 'login') {
         await login(form.email, form.password, form.rememberMe);
         toast.success('Welcome back!');
-        navigate('/app/dashboard');
+        window.location.href = '/app/dashboard';
       } else if (mode === 'register') {
         if (form.password !== form.confirmPassword) { toast.error('Passwords do not match'); return; }
         if (form.password.length < 8) { toast.error('Password must be at least 8 characters'); return; }
         await register(form.fullName, form.email, form.phone, form.password);
         toast.success('Account created! Welcome to AKALETA!');
-        navigate('/app/dashboard');
+        window.location.href = '/app/dashboard';
       } else if (mode === 'forgot') {
         await api.post('/auth/forgot-password', { email: form.email });
         toast.success('Reset link sent if email exists');
@@ -35,7 +34,7 @@ export default function AuthPage({ mode }) {
         if (form.password !== form.confirmPassword) { toast.error('Passwords do not match'); return; }
         await api.post(`/auth/reset-password/${token}`, { password: form.password });
         toast.success('Password reset! Please log in.');
-        navigate('/login');
+        window.location.href = '/login';
       }
     } catch (err) {
       toast.error(err.response?.data?.error || 'Something went wrong');

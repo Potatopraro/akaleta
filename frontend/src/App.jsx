@@ -25,8 +25,8 @@ const PublicRoute = ({ children }) => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
+    <BrowserRouter>
+      <AuthProvider>
         <Toaster
           position="top-right"
           toastOptions={{
@@ -45,7 +45,7 @@ export default function App() {
           <Route path="/app/*" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+      </AuthProvider>
+    </BrowserRouter>
   );
 }

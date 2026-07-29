@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import TranslatorPage from '../pages/TranslatorPage';
 import ChatbotPage from '../pages/ChatbotPage';
@@ -22,7 +22,6 @@ const MOBILE_NAV = NAV_ITEMS.slice(0, 4);
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -47,7 +46,7 @@ export default function AppLayout() {
   const handleLogout = () => {
     logout();
     toast.success('Signed out');
-    navigate('/login');
+    window.location.href = '/login';
   };
 
   const initials = user?.fullName?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'U';
@@ -68,7 +67,7 @@ export default function AppLayout() {
             <button
               key={item.id}
               className={`sidebar-nav-item ${activeId === item.id ? 'active' : ''}`}
-              onClick={() => { navigate(item.path); setSidebarOpen(false); }}
+              onClick={() => { window.location.href = item.path; setSidebarOpen(false); }}
             >
               <span className="nav-icon">{item.icon}</span>
               {sidebarOpen && <span className="nav-label">{item.label}</span>}
@@ -139,7 +138,7 @@ export default function AppLayout() {
                     <p className="dropdown-name">{user?.fullName}</p>
                     <p className="dropdown-email">{user?.email}</p>
                   </div>
-                  <button className="dropdown-item" onClick={() => { navigate('/app/settings'); setProfileOpen(false); }}>
+                  <button className="dropdown-item" onClick={() => { window.location.href = '/app/settings'; setProfileOpen(false); }}>
                     <span>⚙</span> Settings
                   </button>
                   <div className="dropdown-divider" />
@@ -172,7 +171,7 @@ export default function AppLayout() {
           <button 
             key={item.id}
             className={activeId === item.id ? 'active' : ''}
-            onClick={() => navigate(item.path)}
+            onClick={() => window.location.href = item.path}
           >
             <span className="mobile-nav-icon">{item.icon}</span>
             <span className="mobile-nav-label">{item.label}</span>
