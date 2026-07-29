@@ -239,7 +239,7 @@ OPENAI_API_KEY=sk-...
 | GET | `/api/chatbot/sessions/:id/export` | Export chat (json/txt) |
 
 ### WebSocket
-Connect to `ws://localhost:5000/ws`
+Connect to `wss://akaleta-backend.onrender.com/ws`
 
 ```javascript
 // Authenticate
