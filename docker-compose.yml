@@ -38,7 +38,7 @@ services:
     networks:
       - akaleta_network
     healthcheck:
-      test: curl -f http://localhost:5000/ || exit 1
+      test: curl -f https://akaleta-backend.onrender.com/ || exit 1
       interval: 30s
       timeout: 10s
       retries: 5
@@ -81,7 +81,7 @@ services:
     networks:
       - akaleta_network
     healthcheck:
-      test: curl -f http://localhost:5000/health || exit 1
+      test: curl -f https://akaleta-backend.onrender.com/health || exit 1
       interval: 30s
       timeout: 10s
       retries: 3
@@ -92,7 +92,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:5000/api}
+        REACT_APP_API_URL: ${REACT_APP_API_URL:-https://akaleta-backend.onrender.com/api}
     container_name: akaleta_frontend
     restart: unless-stopped
     ports:
