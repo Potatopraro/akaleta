@@ -2,9 +2,67 @@ const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 const User = require('../models/User');
 const { generateTokens, authenticateToken } = require('../middleware/auth');
 const EmailService = require('../services/emailService');
+
+router.post('/google', async (req, res, next) => {
+  try {
+    const { idToken, email, fullName } = req.body;
+
+    if (!idToken && !email) {
+      return res.status(400).json({ error: 'Google sign-in token is required' });
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID || '897765098163-jm5obnvecop6jtedkjitpffevfv3u0en.apps.googleusercontent.com';
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://akaleta.nx.kg/api/auth/google/callback';
+
+    if (!idToken) {
+      return res.status(400).json({ error: 'Google ID token is required' });
+    }
+
+    const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
+      code: idToken,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      grant_type: 'authorization_code'
+    }, { timeout: 10000 });
+
+    const accessToken = tokenResponse.data.access_token;
+    const userInfoResponse = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: 10000
+    });
+
+    const googleUser = userInfoResponse.data;
+    const normalizedEmail = (googleUser.email || email || '').toLowerCase();
+
+    let user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      user = await User.create({
+        fullName: fullName || googleUser.name || 'Google User',
+        email: normalizedEmail,
+        password: crypto.randomBytes(24).toString('hex'),
+        isEmailVerified: true,
+        stats: { lastActiveDate: new Date(), streak: 1 }
+      });
+    }
+
+    const { accessToken: appAccessToken, refreshToken } = generateTokens(user._id);
+    res.json({
+      message: 'Google sign-in successful',
+      user: user.toPublicJSON(),
+      accessToken: appAccessToken,
+      refreshToken
+    });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 router.post('/register', async (req, res, next) => {

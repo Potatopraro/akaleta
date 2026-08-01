@@ -4,6 +4,8 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage from './components/Auth/AuthPage';
 import AppLayout from './components/Layout/AppLayout';
+import LandingPage from './components/pages/LandingPage';
+import PrivacyPolicyPage from './components/pages/PrivacyPolicyPage';
 import './index.css';
 
 const ProtectedRoute = ({ children }) => {
@@ -35,14 +37,15 @@ export default function App() {
           }}
         />
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<PublicRoute><AuthPage mode="login" /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><AuthPage mode="register" /></PublicRoute>} />
           <Route path="/forgot-password" element={<PublicRoute><AuthPage mode="forgot" /></PublicRoute>} />
           <Route path="/reset-password/:token" element={<PublicRoute><AuthPage mode="reset" /></PublicRoute>} />
           <Route path="/verify-email/:token" element={<AuthPage mode="verify" />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/app/*" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
   );

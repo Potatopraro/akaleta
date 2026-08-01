@@ -11,6 +11,30 @@ export default function AuthPage({ mode }) {
   const { login, register } = useAuth();
   const { token } = useParams();
 
+  const handleGoogleSignIn = async () => {
+    try {
+      const googleToken = window.localStorage.getItem('akaleta_google_id_token');
+      if (!googleToken) {
+        toast.error('Google sign-in token was not found. Configure Google OAuth in your environment first.');
+        return;
+      }
+
+      const res = await api.post('/auth/google', {
+        idToken: googleToken,
+        email: window.localStorage.getItem('akaleta_google_email') || '',
+        fullName: window.localStorage.getItem('akaleta_google_name') || ''
+      });
+
+      const { user: userData, accessToken, refreshToken } = res.data;
+      localStorage.setItem('akaleta_token', accessToken);
+      localStorage.setItem('akaleta_refresh', refreshToken);
+      window.location.href = '/app/dashboard';
+      toast.success(`Welcome back, ${userData.fullName || 'there'}!`);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Google sign-in could not be completed');
+    }
+  };
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSubmit = async (e) => {
@@ -149,6 +173,17 @@ export default function AuthPage({ mode }) {
               )}
             </button>
           </form>
+
+          {mode === 'login' && (
+            <>
+              <div className="auth-divider">
+                <span>or</span>
+              </div>
+              <button type="button" className="btn btn-ghost btn-full" onClick={handleGoogleSignIn}>
+                Continue with Google
+              </button>
+            </>
+          )}
 
           <div className="auth-footer">
             {mode === 'login' && (
@@ -315,6 +350,23 @@ export default function AuthPage({ mode }) {
         }
         .auth-link:hover { opacity: 0.8; text-decoration: underline; }
 
+        .auth-divider {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin: 12px 0 8px;
+          color: var(--text-secondary);
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          letter-spacing: 0.16em;
+        }
+        .auth-divider::before,
+        .auth-divider::after {
+          content: '';
+          flex: 1;
+          height: 1px;
+          background: var(--border);
+        }
         .auth-footer {
           margin-top: 20px;
           text-align: center;

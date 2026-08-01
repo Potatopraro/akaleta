@@ -2,6 +2,17 @@
 
 A full-stack web application for real-time Nigerian Sign Language (NSL) detection and translation, built around the [ML-Collective NSL YOLO model](https://github.com/ML-Collective/Sign-to-Speech-for-Sign-Language-Understanding).
 
+## 🔐 Security and deployment notes
+
+- The web app now exposes a public landing page and a dedicated privacy policy page.
+- Authentication supports email/password sign-in plus a Google sign-in entry point.
+- To fully enable Google OAuth, set the following environment variables in your backend deployment:
+  - GOOGLE_CLIENT_ID
+  - GOOGLE_CLIENT_SECRET
+  - GOOGLE_REDIRECT_URI
+
+The frontend can also be configured with a production API URL via REACT_APP_API_URL.
+
 ---
 
 ## 📐 Architecture Overview
