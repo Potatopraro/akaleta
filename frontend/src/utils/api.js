@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+const resolvedApiUrl = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? 'https://akaleta-backend.onrender.com/api' : '/api');
+const apiBaseUrl = resolvedApiUrl.replace(/\/+$/, '');
+const normalizedBaseUrl = apiBaseUrl === 'https://akaleta-backend.onrender.com' ? `${apiBaseUrl}/api` : apiBaseUrl;
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? 'https://akaleta-backend.onrender.com/api' : '/api'),
+  baseURL: normalizedBaseUrl,
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' }
 });
