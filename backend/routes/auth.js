@@ -15,8 +15,8 @@ router.post('/google', async (req, res, next) => {
       return res.status(400).json({ error: 'Google sign-in token is required' });
     }
 
-    const clientId = process.env.GOOGLE_CLIENT_ID || '897765098163-jm5obnvecop6jtedkjitpffevfv3u0en.apps.googleusercontent.com';
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://akaleta.nx.kg/api/auth/google/callback';
 
     if (!idToken) {
