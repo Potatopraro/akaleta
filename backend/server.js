@@ -53,11 +53,23 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Origin not allowed by CORS'));
+    // Allow same-origin (non-browser requests like curl) when origin is falsy
+    if (!origin) return callback(null, true);
+
+    // Allow exact matches from configured list
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // Allow Vercel preview deploys (e.g. <project>-abc123.vercel.app)
+    try {
+      const vercelPreview = /(^https?:\/\/[^.]+\.vercel\.app$)/i;
+      if (vercelPreview.test(origin)) return callback(null, true);
+    } catch (err) {
+      // ignore and fallthrough to rejection
     }
+
+    // Log for easier debugging and return error
+    console.warn(`CORS blocked origin: ${origin}`);
+    return callback(new Error('Origin not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
