@@ -42,7 +42,10 @@ app.use(helmet({
 
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3001',
   'http://localhost:5000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
   'https://akaleta.vercel.app',
   'https://www.akaleta.vercel.app',
   'https://akaleta.nx.kg',
@@ -58,6 +61,14 @@ app.use(cors({
 
     // Allow exact matches from configured list
     if (allowedOrigins.includes(origin)) return callback(null, true);
+
+    // Allow localhost on any port for development
+    try {
+      const localhostOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+      if (localhostOrigin.test(origin)) return callback(null, true);
+    } catch (err) {
+      // ignore and fallthrough to rejection
+    }
 
     // Allow Vercel preview deploys (e.g. <project>-abc123.vercel.app)
     try {
