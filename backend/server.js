@@ -48,6 +48,8 @@ const allowedOrigins = [
   'http://127.0.0.1:3001',
   'https://akaleta.vercel.app',
   'https://www.akaleta.vercel.app',
+  'https://akaleta.xyz',
+  'https://www.akaleta.xyz',
   'https://akaleta.nx.kg',
   'https://www.akaleta.nx.kg',
   process.env.FRONTEND_URL,
