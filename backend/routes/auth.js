@@ -7,29 +7,119 @@ const User = require('../models/User');
 const { generateTokens, authenticateToken } = require('../middleware/auth');
 const EmailService = require('../services/emailService');
 
-router.post('/google', async (req, res, next) => {
-  try {
-    const { idToken, email, fullName } = req.body;
+const allowedFrontendOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'https://akaleta.vercel.app',
+  'https://www.akaleta.vercel.app',
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_URL
+].filter(Boolean).map(url => url.replace(/\/+$/, ''));
 
-    if (!idToken && !email) {
-      return res.status(400).json({ error: 'Google sign-in token is required' });
+const getGoogleRedirectUri = (req) => {
+  if (process.env.GOOGLE_REDIRECT_URI) {
+    return process.env.GOOGLE_REDIRECT_URI;
+  }
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.get('host');
+  return `${protocol}://${host}/api/auth/google/callback`;
+};
+
+const isAllowedFrontendRedirect = (redirectUrl) => {
+  try {
+    const parsed = new URL(redirectUrl);
+    return allowedFrontendOrigins.includes(parsed.origin);
+  } catch {
+    return false;
+  }
+};
+
+const getFrontendRedirectUrl = () => {
+  return process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:3000';
+};
+
+const buildGoogleAuthErrorRedirect = (req, message) => {
+  let baseUrl = getFrontendRedirectUrl();
+  if (req.query.returnUrl && isAllowedFrontendRedirect(req.query.returnUrl)) {
+    baseUrl = req.query.returnUrl;
+  }
+
+  const redirectUrl = new URL(baseUrl);
+  redirectUrl.pathname = '/oauth-callback';
+  redirectUrl.searchParams.set('error', message);
+  return redirectUrl.toString();
+};
+
+const upsertGoogleUser = async (googleUser) => {
+  const normalizedEmail = (googleUser.email || '').toLowerCase();
+  if (!normalizedEmail) {
+    throw new Error('Google account did not provide an email address');
+  }
+
+  let user = await User.findOne({ email: normalizedEmail });
+  if (!user) {
+    user = await User.create({
+      fullName: googleUser.name || googleUser.fullName || 'Google User',
+      email: normalizedEmail,
+      password: crypto.randomBytes(24).toString('hex'),
+      isEmailVerified: true,
+      stats: { lastActiveDate: new Date(), streak: 1 }
+    });
+  }
+
+  return user;
+};
+
+router.get('/google', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    return res.redirect(buildGoogleAuthErrorRedirect(req, 'Google sign-in is currently unavailable. Please use email/password or try again later.'));
+  }
+
+  const redirectUri = getGoogleRedirectUri(req);
+  const scope = encodeURIComponent('openid profile email');
+  const statePayload = {};
+  if (req.query.returnUrl && isAllowedFrontendRedirect(req.query.returnUrl)) {
+    statePayload.returnUrl = req.query.returnUrl;
+  }
+  const state = Buffer.from(JSON.stringify(statePayload)).toString('base64url');
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=select_account&state=${encodeURIComponent(state)}`;
+  res.redirect(authUrl);
+});
+
+router.get('/google/callback', async (req, res, next) => {
+  try {
+    const { code } = req.query;
+    if (!code) {
+      return res.status(400).json({ error: 'Google authorization code is required' });
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://akaleta.nx.kg/api/auth/google/callback';
+    const redirectUri = getGoogleRedirectUri(req);
 
-    if (!idToken) {
-      return res.status(400).json({ error: 'Google ID token is required' });
+    if (!clientId || !clientSecret) {
+      return res.redirect(buildGoogleAuthErrorRedirect(req, 'Google sign-in is currently unavailable. Please use email/password or try again later.'));
     }
 
-    const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
-      code: idToken,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: redirectUri,
-      grant_type: 'authorization_code'
-    }, { timeout: 10000 });
+    const tokenResponse = await axios.post(
+      'https://oauth2.googleapis.com/token',
+      new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      }).toString(),
+      {
+        timeout: 10000,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      }
+    );
 
     const accessToken = tokenResponse.data.access_token;
     const userInfoResponse = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
@@ -38,20 +128,75 @@ router.post('/google', async (req, res, next) => {
     });
 
     const googleUser = userInfoResponse.data;
-    const normalizedEmail = (googleUser.email || email || '').toLowerCase();
+    const user = await upsertGoogleUser(googleUser);
+    const { accessToken: appAccessToken, refreshToken } = generateTokens(user._id);
 
-    let user = await User.findOne({ email: normalizedEmail });
-
-    if (!user) {
-      user = await User.create({
-        fullName: fullName || googleUser.name || 'Google User',
-        email: normalizedEmail,
-        password: crypto.randomBytes(24).toString('hex'),
-        isEmailVerified: true,
-        stats: { lastActiveDate: new Date(), streak: 1 }
-      });
+    let returnUrl = getFrontendRedirectUrl();
+    if (req.query.state) {
+      try {
+        const stateData = JSON.parse(Buffer.from(req.query.state, 'base64url').toString('utf8'));
+        if (stateData.returnUrl && isAllowedFrontendRedirect(stateData.returnUrl)) {
+          returnUrl = stateData.returnUrl;
+        }
+      } catch {
+        // Ignore invalid state and use fallback frontend URL
+      }
     }
 
+    const redirectUrl = new URL(returnUrl);
+    redirectUrl.searchParams.set('accessToken', appAccessToken);
+    redirectUrl.searchParams.set('refreshToken', refreshToken);
+    return res.redirect(redirectUrl.toString());
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/google', async (req, res, next) => {
+  try {
+    const { idToken, code, email, fullName } = req.body;
+
+    if (!idToken && !code && !email) {
+      return res.status(400).json({ error: 'Google sign-in token is required' });
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = getGoogleRedirectUri(req);
+
+    let googleUser;
+
+    if (idToken) {
+      const tokenInfoResponse = await axios.get(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`, { timeout: 10000 });
+      googleUser = tokenInfoResponse.data;
+    } else if (code) {
+      if (!clientId || !clientSecret) {
+        return res.status(500).json({ error: 'Google OAuth client credentials are not configured' });
+      }
+      const tokenResponse = await axios.post(
+        'https://oauth2.googleapis.com/token',
+        new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code'
+        }).toString(),
+        {
+          timeout: 10000,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+        }
+      );
+      const userInfoResponse = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${tokenResponse.data.access_token}` },
+        timeout: 10000
+      });
+      googleUser = userInfoResponse.data;
+    } else {
+      googleUser = { email, name: fullName, fullName };
+    }
+
+    const user = await upsertGoogleUser(googleUser);
     const { accessToken: appAccessToken, refreshToken } = generateTokens(user._id);
     res.json({
       message: 'Google sign-in successful',

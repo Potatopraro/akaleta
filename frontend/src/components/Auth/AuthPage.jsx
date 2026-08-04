@@ -11,28 +11,15 @@ export default function AuthPage({ mode }) {
   const { login, register } = useAuth();
   const { token } = useParams();
 
-  const handleGoogleSignIn = async () => {
-    try {
-      const googleToken = window.localStorage.getItem('akaleta_google_id_token');
-      if (!googleToken) {
-        toast.error('Google sign-in token was not found. Configure Google OAuth in your environment first.');
-        return;
-      }
+  const handleGoogleSignIn = () => {
+    const apiUrl = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? 'https://akaleta-backend.onrender.com/api' : '/api');
+    const baseUrl = apiUrl.replace(/\/+$/, '');
+    const frontendOrigin = window.location.origin;
+    const googleAuthUrl = baseUrl.startsWith('http')
+      ? `${baseUrl}/auth/google?returnUrl=${encodeURIComponent(frontendOrigin)}`
+      : `${frontendOrigin}${baseUrl}/auth/google?returnUrl=${encodeURIComponent(frontendOrigin)}`;
 
-      const res = await api.post('/auth/google', {
-        idToken: googleToken,
-        email: window.localStorage.getItem('akaleta_google_email') || '',
-        fullName: window.localStorage.getItem('akaleta_google_name') || ''
-      });
-
-      const { user: userData, accessToken, refreshToken } = res.data;
-      localStorage.setItem('akaleta_token', accessToken);
-      localStorage.setItem('akaleta_refresh', refreshToken);
-      window.location.href = '/app/dashboard';
-      toast.success(`Welcome back, ${userData.fullName || 'there'}!`);
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Google sign-in could not be completed');
-    }
+    window.location.href = googleAuthUrl;
   };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));

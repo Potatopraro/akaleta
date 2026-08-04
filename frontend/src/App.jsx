@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthPage from './components/Auth/AuthPage';
+import GoogleCallback from './components/Auth/GoogleCallback';
 import AppLayout from './components/Layout/AppLayout';
 import LandingPage from './components/pages/LandingPage';
 import PrivacyPolicyPage from './components/pages/PrivacyPolicyPage';
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/forgot-password" element={<PublicRoute><AuthPage mode="forgot" /></PublicRoute>} />
           <Route path="/reset-password/:token" element={<PublicRoute><AuthPage mode="reset" /></PublicRoute>} />
           <Route path="/verify-email/:token" element={<AuthPage mode="verify" />} />
+          <Route path="/oauth-callback" element={<GoogleCallback />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/app/*" element={<ProtectedRoute><AppLayout /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
