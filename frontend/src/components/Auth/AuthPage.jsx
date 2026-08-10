@@ -187,7 +187,7 @@ export default function AuthPage({ mode }) {
 
         {mode === 'register' && (
           <p className="auth-terms">
-            By creating an account, you agree to our Terms of Service and Privacy Policy
+            By creating an account, you agree to our <Link to="/privacy-policy" className="auth-link">Privacy Policy</Link>.
           </p>
         )}
       </div>
