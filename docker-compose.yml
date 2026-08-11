@@ -24,7 +24,7 @@ services:
 
   # ── DeepStack (Nigerian Sign Language YOLO Model) ────────────────────────────
   deepstack:
-    image: deepquestai/deepstack:latest
+    image: deepquestai/deepstack:2021.09.1
     container_name: akaleta_deepstack
     restart: unless-stopped
     environment:
